@@ -13,7 +13,7 @@ mainClass
 ;
 
 classDeclaration
-:   ('abstract')?  'class' Identifier ( 'extends' Identifier | 'implements' Identifier ( ',' Identifier)* )? '{'  fieldDeclaration* constructorDeclaration? methodDeclaration* abstractMethodDeclaration* '}'
+:   ('abstract')? 'class' Identifier ( 'extends' Identifier | 'implements' Identifier ( ',' Identifier)* )? '{'  fieldDeclaration* constructorDeclaration? methodDeclaration* abstractMethodDeclaration* '}'
 ;
 
 interfaceDeclaration
@@ -28,11 +28,9 @@ interfaceFieldDeclaration
 :   type Identifier EQ expression ';'
 ;
 
-
 fieldDeclaration
 :   varDeclaration
 ;
-
 
 localDeclaration
 :   type Identifier (EQ expression)? ';'
@@ -54,7 +52,6 @@ abstractMethodDeclaration
 :   '@Override'? (accessModifier)? 'abstract' (type | 'void') Identifier '(' parameterList* ')' ';'
 ;
 
-
 parameterList
 :   parameter (',' parameter)*
 ;
@@ -62,11 +59,11 @@ parameterList
 parameter
 :   type Identifier
 ;
-///////////////////////////
+
 methodBody
 :   (localDeclaration | statement)* (RETURN expression ';')?
 ;
-///////////////////////////
+
 type
 :   (javaType | Identifier) (LSB RSB)?
 ;
@@ -82,16 +79,23 @@ accessModifier
 ;
 
 statement
-:   '{' statement* '}'                                                #nestedStatement
-|   'if' LP expression RP statement ('else' statement)?               #ifElseStatement
-|   'while' LP expression RP statement                                #whileStatement
-|   'for' LP localDeclaration? expression ';' expression RP statement #forStatement
-|   'print' LP expressionOrString RP ';'                              #printStatement
-|   Identifier EQ expression ';'                                      #variableAssignmentStatement
-|   Identifier LSB expression RSB EQ expression ';'                   #arrayAssignmentStatement
-|   localDeclaration                                                  #localDeclarationStatement
+:   '{' statement* '}'
+  #nestedStatement
+|   'if' LP expression RP statement (ELSE statement)?
+  #ifElseStatement
+|   'while' LP expression RP statement
+  #whileStatement
+|   'for' LP localDeclaration? expression ';' expression RP statement
+  #forStatement
+|   'print' LP expressionOrString RP ';'
+  #printStatement
+|   Identifier EQ expression ';'
+  #variableAssignmentStatement
+|   Identifier LSB expression RSB EQ expression ';'
+  #arrayAssignmentStatement
+|   localDeclaration
+  #localDeclarationStatement
 ;
-
 
 ifBlock
 :   statement
@@ -106,36 +110,68 @@ whileBlock
 ;
 
 expressionOrString
-:   expression
-|   StringLiteral
-;
+    : expression
+    | StringLiteral
+    ;
 
 expression
-:   expression LSB expression RSB                                      #arrayAccessExpression
-|   Identifier                                                         #set_type
-|   expression DOTLENGTH                                               #arrayLengthExpression
-|   expression '.' Identifier LP (expression (',' expression)*)? RP    #methodCallExpression
-|   NOT expression                                                     #notExpression
-|   'new' type LP (expression (',' expression)*)? RP                   #objectInstantiationExpression
-|   'new' type LSB expression RSB                                      #arrayInstantiationExpression
-|   '{' IntegerLiteral (',' IntegerLiteral)* '}'                       #intArrayInstantiationExpression
-|   expression POWER expression                                        #powExpression
-|   expression TIMES expression                                        #mulExpression
-|   expression PLUS expression                                         #addExpression
-|   expression MINUS expression                                        #subExpression
-|   expression LT expression                                           #ltExpression
-|   expression AND expression                                          #andExpression
-|   IntegerLiteral                                                     #intLitExpression
-|   BooleanLiteral                                                     #booleanLitExpression
-|   NullLiteral                                                        #nullLitExpression
-|   Identifier                                                         #identifierExpression
-|   'this'                                                             #thisExpression
-|   '(' expression ')'                                                 #parenExpression
-|   localDeclaration                                                   #variableDeclaration
-;
+    : primaryExpression expressionPrime
+    ;
+
+expressionPrime
+    : LSB expression RSB expressionPrime
+        #arrayAccessExpression
+    | DOTLENGTH expressionPrime
+        #arrayLengthExpression
+    | '.' Identifier LP (expression (',' expression)*)? RP expressionPrime
+        #methodCallExpression
+    | POWER primaryExpression expressionPrime
+        #powExpression
+    | TIMES primaryExpression expressionPrime
+        #mulExpression
+    | PLUS primaryExpression expressionPrime
+        #addExpression
+    | MINUS primaryExpression expressionPrime
+        #subExpression
+    | LT primaryExpression expressionPrime
+        #ltExpression
+    | GT primaryExpression expressionPrime
+        #gtExpression
+    | AND primaryExpression expressionPrime
+        #andExpression
+    | /* epsilon */
+        #empty
+    ;
+
+primaryExpression
+    : NOT primaryExpression
+        #notExpression
+    | 'new' type LP (expression (',' expression)*)? RP
+        #objectInstantiationExpression
+    | 'new' type LSB expression RSB
+        #arrayInstantiationExpression
+    | '{' IntegerLiteral (',' IntegerLiteral)* '}'
+        #intArrayInstantiationExpression
+    | IntegerLiteral
+        #intLitExpression
+    | BooleanLiteral
+        #booleanLitExpression
+    | NullLiteral
+        #nullLitExpression
+    | Identifier
+        #identifierExpression
+    | 'this'
+        #thisExpression
+    | '(' expression ')'
+        #parenExpression
+    | localDeclaration
+        #variableDeclaration
+    ;
+
 
 AND: '&&';
 LT: '<';
+GT: '>';
 PLUS: '+';
 MINUS: '-';
 TIMES: '*';
@@ -148,6 +184,7 @@ LP: '(';
 RP: ')';
 RETURN: 'return';
 EQ: '=';
+ELSE: 'else';
 
 BooleanLiteral
 :   'true'

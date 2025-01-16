@@ -1,19 +1,13 @@
-package gen;
+package phase1;
 
 
-import gen.javaMinusMinusLexer;
 import gen.javaMinusMinusListener;
 import gen.javaMinusMinusParser;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-public class Listener implements javaMinusMinusListener {
+public class ListenerPhase1 implements javaMinusMinusListener {
 
     private int indentLevel = 0;
     private boolean isInsideIfElse = false;

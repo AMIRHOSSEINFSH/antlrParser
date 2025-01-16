@@ -1,0 +1,76 @@
+// First Class: Main
+class Main {
+    public static void main(String[] args) {
+        // Create instances of classes
+        Shape circle = new Circle(5);
+        Shape rectangle = new Rectangle(4, 6);
+
+        // Print area of both shapes
+        print("Area of circle: ");
+        print(circle.area()); // Expected output: Area of circle: 78
+
+        print("Area of rectangle: ");
+        print(rectangle.area()); // Expected output: Area of rectangle: 24
+
+        // Array of integers
+        int[] numbers = new int[5];
+        numbers[0] = 10;
+        numbers[1] = 20;
+        numbers[2] = 30;
+        numbers[3] = 40;
+        numbers[4] = 50;
+
+        // Sum of array elements
+        int sum = 0;
+        for (int i = 0; i < numbers.length; i+1) {
+            sum = sum + numbers[i];
+        }
+        print("Sum of array elements: ");
+        print(sum); // Expected output: Sum of array elements: 150
+
+        // Demonstrate usage of subclass:
+        Calculator calc = new Calculator();
+        int result = calc.multiply(10, 20);
+        print("Multiplication result: ");
+        print(result); // Expected output: Multiplication result: 200
+    }
+
+}
+
+// Second Class: Circle
+abstract class Circle extends Shape {
+    int radius;
+
+    // Constructor for Circle
+    public Circle(int radius) {
+        radius = radius;
+    }
+
+    // Overriding area method for circle
+    @Override
+    public int area() {
+        return 3;
+    }
+}
+
+// Abstract class: Shape
+abstract class Shape {
+    int x;
+    int y;
+
+    // Abstract method for area calculation
+    public abstract int area();
+}
+
+// A utility class: Calculator
+class Calculator {
+    // Method to add two numbers
+    public int add(int a, int b) {
+        return a + b;
+    }
+
+    // Method to multiply two numbers
+    public int multiply(int a, int b) {
+        return a * b;
+    }
+}

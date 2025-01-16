@@ -1,0 +1,662 @@
+import gen.javaMinusMinusListener;
+import gen.javaMinusMinusParser;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.ErrorNode;
+import org.antlr.v4.runtime.tree.TerminalNode;
+import phase2.SymbolNode.enumeration.AccessModifier;
+import phase2.SymbolNode.enumeration.NodeType;
+import phase2.SymbolNode.nodes.*;
+
+import java.util.*;
+import java.util.concurrent.SynchronousQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static phase2.SymbolNode.nodes.TypeSubNode.primitiveTypes;
+
+public class ListenerPhase2 implements javaMinusMinusListener {
+
+    public RootNode rootNode;
+
+    public Stack<SymbolNode> parentScopeNode = new Stack<>();
+
+    private boolean isMainClassVisited = false;
+
+//    public boolean isNestedNode = false;
+
+    private boolean isTypeExists(String type) {
+        //dfs
+        Queue<SymbolNode> typeSubNodes = new LinkedList<>(rootNode.getChildren());
+        while (!typeSubNodes.isEmpty()) {
+            SymbolNode node = typeSubNodes.remove();
+            if (node.getNodeType() == NodeType.Class && Objects.equals(type, ((ClassNode) node).getClassName()))
+                return true;
+
+            parentScopeNode.addAll(node.getChildren());
+        }
+
+        return false;
+    }
+
+    private boolean isPrimitive(String type) {
+        return Arrays.stream(primitiveTypes).toList().contains(type);
+    }
+
+    @Override
+    public void enterProgram(javaMinusMinusParser.ProgramContext ctx) {
+        rootNode = new RootNode();
+    }
+
+    @Override
+    public void exitProgram(javaMinusMinusParser.ProgramContext ctx) {
+
+    }
+
+    @Override
+    public void enterImportClass(javaMinusMinusParser.ImportClassContext ctx) {
+
+    }
+
+    @Override
+    public void exitImportClass(javaMinusMinusParser.ImportClassContext ctx) {
+
+    }
+
+    @Override
+    public void enterMainClass(javaMinusMinusParser.MainClassContext ctx) {
+        ClassNode classNode = new ClassNode(ctx.Identifier().getFirst().getText(),null,false,true);
+
+        System.out.println("Entering Main class "+classNode.getClassName());
+        classNode.setParentNode(rootNode);
+
+        ArrayList<TypeSubNode> definitions = new ArrayList<>();
+        definitions.add(new TypeSubNode(ctx.Identifier().getLast().getText(),true));
+        MethodNode methodNode = new MethodNode("main","void", AccessModifier.ACCESS_MODIFIER_PUBLIC,definitions,false);
+        classNode.setParentNode(methodNode);
+        isMainClassVisited = true;
+        parentScopeNode.push(classNode);
+    }
+
+    @Override
+    public void exitMainClass(javaMinusMinusParser.MainClassContext ctx) {
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterClassDeclaration(javaMinusMinusParser.ClassDeclarationContext ctx) {
+        boolean isAbstract = ctx.children.getFirst().getText().equals("abstract");
+        String extendName = null;
+        if (!(ctx.Identifier(1) == null || ctx.Identifier(1).getText().equals("implement"))) {
+            extendName = ctx.Identifier(1).getText();
+        }
+
+
+        ClassNode classNode = new ClassNode(ctx.Identifier().getFirst().getText(),extendName,isAbstract,false);
+        System.out.println("Entering class: "+classNode.getClassName());
+
+        classNode.setParentNode(rootNode);
+
+        parentScopeNode.push(classNode);
+    }
+
+    @Override
+    public void exitClassDeclaration(javaMinusMinusParser.ClassDeclarationContext ctx) {
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterInterfaceDeclaration(javaMinusMinusParser.InterfaceDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void exitInterfaceDeclaration(javaMinusMinusParser.InterfaceDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void enterInterfaceMethodDeclaration(javaMinusMinusParser.InterfaceMethodDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void exitInterfaceMethodDeclaration(javaMinusMinusParser.InterfaceMethodDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void enterInterfaceFieldDeclaration(javaMinusMinusParser.InterfaceFieldDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void exitInterfaceFieldDeclaration(javaMinusMinusParser.InterfaceFieldDeclarationContext ctx) {
+
+    }
+
+    @Override
+    public void enterFieldDeclaration(javaMinusMinusParser.FieldDeclarationContext ctx) {
+        System.out.println("entering field "+ctx.getText());
+    }
+
+    @Override
+    public void exitFieldDeclaration(javaMinusMinusParser.FieldDeclarationContext ctx) {
+        System.out.println("exit field "+ctx.getText());
+    }
+
+    @Override
+    public void enterLocalDeclaration(javaMinusMinusParser.LocalDeclarationContext ctx) {
+        ArrayList<TypeSubNode> definitions = new ArrayList<>();
+        String objectType = null;
+        if (ctx.EQ() != null) {
+            try {ctx.getText();
+                try {
+                    Integer.parseInt(ctx.expression().getText());
+                    objectType = "int";
+                }catch (NumberFormatException _) {
+                    Double.parseDouble(ctx.expression().getText());
+                    objectType = "decimal";
+                }
+            }catch (NumberFormatException _) {
+                if (ctx.expression().getText().contains("new")) {
+                    String regex = "\\bnew([A-Z][a-zA-Z0-9_]*)\\(";
+                    Pattern pattern = Pattern.compile(regex);
+                    Matcher matcher = pattern.matcher(ctx.expression().getText());
+                    if (matcher.find()) {
+                        objectType = matcher.group(1);
+                    }
+                }else {
+                    objectType = "UNKNOWN";
+                }
+            }
+        }
+        definitions.add(new TypeSubNode(ctx.type().getText(), isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()),objectType));
+        LocalVarNode localVarNode = new LocalVarNode(ctx.Identifier().toString(),definitions);
+        parentScopeNode.peek().addChild(localVarNode);
+        System.out.println("entering localdec "+ctx.Identifier().toString());
+    }
+
+
+    @Override
+    public void exitLocalDeclaration(javaMinusMinusParser.LocalDeclarationContext ctx) {
+        System.out.println("exit localdec "+ctx.getText());
+    }
+
+    @Override
+    public void enterVarDeclaration(javaMinusMinusParser.VarDeclarationContext ctx) {
+        System.out.println("entering variable dec : "+ctx.getText());
+    }
+
+    @Override
+    public void exitVarDeclaration(javaMinusMinusParser.VarDeclarationContext ctx) {
+        System.out.println("exit variable dec : "+ctx.getText());
+    }
+
+    @Override
+    public void enterMethodDeclaration(javaMinusMinusParser.MethodDeclarationContext ctx) {
+        ArrayList<TypeSubNode> typeSubNodes = new ArrayList<>();
+        if (!ctx.parameterList().isEmpty())
+            ctx.parameterList().getFirst().parameter().forEach(item->typeSubNodes.add(new TypeSubNode(item.type().getText(),isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()))));
+        MethodNode mn = new MethodNode(ctx.Identifier().getText(),ctx.type().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes,false);
+        mn.setOverried(ctx.getText().contains("@Override"));
+        parentScopeNode.peek().addChild(mn);
+        parentScopeNode.push(mn);
+//        ctx.type().getText()
+        System.out.println("entering method "+ctx.getText());
+    }
+
+    @Override
+    public void exitMethodDeclaration(javaMinusMinusParser.MethodDeclarationContext ctx) {
+        System.out.println("exit method "+ctx.getText());
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterConstructorDeclaration(javaMinusMinusParser.ConstructorDeclarationContext ctx) {
+        System.out.println("entering constructor: "+ ctx.getText());
+    }
+
+    @Override
+    public void exitConstructorDeclaration(javaMinusMinusParser.ConstructorDeclarationContext ctx) {
+        System.out.println("exit constructor: "+ ctx.getText());
+    }
+
+    @Override
+    public void enterAbstractMethodDeclaration(javaMinusMinusParser.AbstractMethodDeclarationContext ctx) {
+        System.out.println("enterAbstractMethodDeclaration "+ ctx.getText());
+    }
+
+    @Override
+    public void exitAbstractMethodDeclaration(javaMinusMinusParser.AbstractMethodDeclarationContext ctx) {
+        System.out.println("exitAbstractMethodDeclaration "+ ctx.getText());
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterParameterList(javaMinusMinusParser.ParameterListContext ctx) {
+        System.out.println("enterParameterList "+ctx.getText());
+    }
+
+    @Override
+    public void exitParameterList(javaMinusMinusParser.ParameterListContext ctx) {
+        System.out.println("exitParameterList "+ctx.getText());
+    }
+
+    @Override
+    public void enterParameter(javaMinusMinusParser.ParameterContext ctx) {
+        System.out.println("entering Parameter:" + ctx.getText());
+
+    }
+
+    @Override
+    public void exitParameter(javaMinusMinusParser.ParameterContext ctx) {
+        System.out.println("exit Parameter:" + ctx.getText());
+    }
+
+    @Override
+    public void enterMethodBody(javaMinusMinusParser.MethodBodyContext ctx) {
+        System.out.println("entering method body: "+ctx.getText());
+
+    }
+
+    @Override
+    public void exitMethodBody(javaMinusMinusParser.MethodBodyContext ctx) {
+        System.out.println("exit method body: "+ctx.getText());
+    }
+
+    @Override
+    public void enterType(javaMinusMinusParser.TypeContext ctx) {
+        System.out.println("entering type : "+ctx.getText());
+
+    }
+
+    @Override
+    public void exitType(javaMinusMinusParser.TypeContext ctx) {
+        System.out.println("exit type : "+ctx.getText());
+    }
+
+    @Override
+    public void enterJavaType(javaMinusMinusParser.JavaTypeContext ctx) {
+        System.out.println("entering java type: "+ ctx.getText());
+
+    }
+
+    @Override
+    public void exitJavaType(javaMinusMinusParser.JavaTypeContext ctx) {
+        System.out.println("exit java type: "+ ctx.getText());
+    }
+
+    @Override
+    public void enterAccessModifier(javaMinusMinusParser.AccessModifierContext ctx) {
+        System.out.println("enterAccessModifier "+ ctx.getText());
+    }
+
+    @Override
+    public void exitAccessModifier(javaMinusMinusParser.AccessModifierContext ctx) {
+        System.out.println("exitAccessModifier "+ ctx.getText());
+    }
+
+    @Override
+    public void enterNestedStatement(javaMinusMinusParser.NestedStatementContext ctx) {
+        System.out.println("enterNestedStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitNestedStatement(javaMinusMinusParser.NestedStatementContext ctx) {
+        System.out.println("exitNestedStatement "+ctx.getText());
+    }
+
+    @Override
+    public void enterIfElseStatement(javaMinusMinusParser.IfElseStatementContext ctx) {
+        System.out.println("enterIfElseStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitIfElseStatement(javaMinusMinusParser.IfElseStatementContext ctx) {
+        System.out.println("exitIfElseStatement "+ctx.getText());
+    }
+
+    @Override
+    public void enterWhileStatement(javaMinusMinusParser.WhileStatementContext ctx) {
+        System.out.println("enterWhileStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitWhileStatement(javaMinusMinusParser.WhileStatementContext ctx) {
+        System.out.println("exitWhileStatement "+ctx.getText());
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterForStatement(javaMinusMinusParser.ForStatementContext ctx) {
+        System.out.println("enterForStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitForStatement(javaMinusMinusParser.ForStatementContext ctx) {
+        System.out.println("exitForStatement "+ctx.getText());
+        parentScopeNode.pop();
+    }
+
+    @Override
+    public void enterPrintStatement(javaMinusMinusParser.PrintStatementContext ctx) {
+        System.out.println("enterPrintStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitPrintStatement(javaMinusMinusParser.PrintStatementContext ctx) {
+        System.out.println("exitPrintStatement "+ctx.getText());
+    }
+
+    @Override
+    public void enterVariableAssignmentStatement(javaMinusMinusParser.VariableAssignmentStatementContext ctx) {
+        System.out.println("enterVariableAssignmentStatement "+ctx.getText());
+    }
+
+    @Override
+    public void exitVariableAssignmentStatement(javaMinusMinusParser.VariableAssignmentStatementContext ctx) {
+        System.out.println("exitVariableAssignmentStatement "+ctx.getText());
+    }
+
+    @Override
+    public void enterArrayAssignmentStatement(javaMinusMinusParser.ArrayAssignmentStatementContext ctx) {
+        System.out.println("enterArrayAssignmentStatement "+ ctx.getText());
+    }
+
+    @Override
+    public void exitArrayAssignmentStatement(javaMinusMinusParser.ArrayAssignmentStatementContext ctx) {
+        System.out.println("exitArrayAssignmentStatement "+ctx.getText());
+    }
+
+    @Override
+    public void enterLocalDeclarationStatement(javaMinusMinusParser.LocalDeclarationStatementContext ctx) {
+        System.out.println("entering LocalDeclaration Statement "+ctx.getText());
+
+    }
+
+    @Override
+    public void exitLocalDeclarationStatement(javaMinusMinusParser.LocalDeclarationStatementContext ctx) {
+        System.out.println("exiting LocalDeclaration "+ctx.getText());
+    }
+
+    @Override
+    public void enterIfBlock(javaMinusMinusParser.IfBlockContext ctx) {
+        System.out.println("enterIfBlock "+ctx.getText());
+    }
+
+    @Override
+    public void exitIfBlock(javaMinusMinusParser.IfBlockContext ctx) {
+        System.out.println("exitIfBlock "+ctx.getText());
+    }
+
+    @Override
+    public void enterElseBlock(javaMinusMinusParser.ElseBlockContext ctx) {
+        System.out.println("enterElseBlock "+ctx.getText());
+    }
+
+    @Override
+    public void exitElseBlock(javaMinusMinusParser.ElseBlockContext ctx) {
+        System.out.println("exitElseBlock "+ctx.getText());
+    }
+
+    @Override
+    public void enterWhileBlock(javaMinusMinusParser.WhileBlockContext ctx) {
+        System.out.println("enterWhileBlock "+ctx.getText());
+    }
+
+    @Override
+    public void exitWhileBlock(javaMinusMinusParser.WhileBlockContext ctx) {
+        System.out.println("exitWhileBlock "+ctx.getText());
+    }
+
+    @Override
+    public void enterExpressionOrString(javaMinusMinusParser.ExpressionOrStringContext ctx) {
+        System.out.println("enterExpressionOrString "+ctx.getText());
+    }
+
+    @Override
+    public void exitExpressionOrString(javaMinusMinusParser.ExpressionOrStringContext ctx) {
+        System.out.println("exitExpressionOrString "+ctx.getText());
+    }
+
+    @Override
+    public void enterLtExpression(javaMinusMinusParser.LtExpressionContext ctx) {
+        System.out.println("enterLtExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitLtExpression(javaMinusMinusParser.LtExpressionContext ctx) {
+        System.out.println("exitLtExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterObjectInstantiationExpression(javaMinusMinusParser.ObjectInstantiationExpressionContext ctx) {
+        System.out.println("enterObjectInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitObjectInstantiationExpression(javaMinusMinusParser.ObjectInstantiationExpressionContext ctx) {
+        System.out.println("exitObjectInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterArrayInstantiationExpression(javaMinusMinusParser.ArrayInstantiationExpressionContext ctx) {
+        System.out.println("enterArrayInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitArrayInstantiationExpression(javaMinusMinusParser.ArrayInstantiationExpressionContext ctx) {
+        System.out.println("exitArrayInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterPowExpression(javaMinusMinusParser.PowExpressionContext ctx) {
+        System.out.println("enterPowExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitPowExpression(javaMinusMinusParser.PowExpressionContext ctx) {
+        System.out.println("exitPowExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterSet_type(javaMinusMinusParser.Set_typeContext ctx) {
+        System.out.println("enterSet_type "+ctx.getText());
+    }
+
+    @Override
+    public void exitSet_type(javaMinusMinusParser.Set_typeContext ctx) {
+        System.out.println("exitSet_type "+ctx.getText());
+    }
+
+    @Override
+    public void enterIdentifierExpression(javaMinusMinusParser.IdentifierExpressionContext ctx) {
+        System.out.println("enterIdentifierExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitIdentifierExpression(javaMinusMinusParser.IdentifierExpressionContext ctx) {
+        System.out.println("exitIdentifierExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterMethodCallExpression(javaMinusMinusParser.MethodCallExpressionContext ctx) {
+        System.out.println("enterMethodCallExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitMethodCallExpression(javaMinusMinusParser.MethodCallExpressionContext ctx) {
+        System.out.println("exitMethodCallExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterNotExpression(javaMinusMinusParser.NotExpressionContext ctx) {
+        System.out.println("enterNotExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitNotExpression(javaMinusMinusParser.NotExpressionContext ctx) {
+        System.out.println("exitNotExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterBooleanLitExpression(javaMinusMinusParser.BooleanLitExpressionContext ctx) {
+        System.out.println("enterBooleanLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitBooleanLitExpression(javaMinusMinusParser.BooleanLitExpressionContext ctx) {
+        System.out.println("exitBooleanLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterParenExpression(javaMinusMinusParser.ParenExpressionContext ctx) {
+        System.out.println("enterParenExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitParenExpression(javaMinusMinusParser.ParenExpressionContext ctx) {
+        System.out.println("exitParenExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterIntLitExpression(javaMinusMinusParser.IntLitExpressionContext ctx) {
+        System.out.println("enterIntLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitIntLitExpression(javaMinusMinusParser.IntLitExpressionContext ctx) {
+        System.out.println("exitIntLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterVariableDeclaration(javaMinusMinusParser.VariableDeclarationContext ctx) {
+        System.out.println("enterVariableDeclaration "+ctx.getText());
+    }
+
+    @Override
+    public void exitVariableDeclaration(javaMinusMinusParser.VariableDeclarationContext ctx) {
+        System.out.println("exitVariableDeclaration "+ctx.getText());
+    }
+
+    @Override
+    public void enterNullLitExpression(javaMinusMinusParser.NullLitExpressionContext ctx) {
+        System.out.println("enterNullLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitNullLitExpression(javaMinusMinusParser.NullLitExpressionContext ctx) {
+        System.out.println("exitNullLitExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterAndExpression(javaMinusMinusParser.AndExpressionContext ctx) {
+        System.out.println("enterAndExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitAndExpression(javaMinusMinusParser.AndExpressionContext ctx) {
+        System.out.println("exitAndExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterArrayAccessExpression(javaMinusMinusParser.ArrayAccessExpressionContext ctx) {
+        System.out.println("enterArrayAccessExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitArrayAccessExpression(javaMinusMinusParser.ArrayAccessExpressionContext ctx) {
+        System.out.println("exitArrayAccessExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterAddExpression(javaMinusMinusParser.AddExpressionContext ctx) {
+        System.out.println("enterAddExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitAddExpression(javaMinusMinusParser.AddExpressionContext ctx) {
+        System.out.println("exitAddExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterThisExpression(javaMinusMinusParser.ThisExpressionContext ctx) {
+        System.out.println("enterThisExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitThisExpression(javaMinusMinusParser.ThisExpressionContext ctx) {
+        System.out.println("exitThisExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterArrayLengthExpression(javaMinusMinusParser.ArrayLengthExpressionContext ctx) {
+        System.out.println("enterArrayLengthExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitArrayLengthExpression(javaMinusMinusParser.ArrayLengthExpressionContext ctx) {
+        System.out.println("exitArrayLengthExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterIntArrayInstantiationExpression(javaMinusMinusParser.IntArrayInstantiationExpressionContext ctx) {
+        System.out.println("enterIntArrayInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitIntArrayInstantiationExpression(javaMinusMinusParser.IntArrayInstantiationExpressionContext ctx) {
+        System.out.println("exitIntArrayInstantiationExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterSubExpression(javaMinusMinusParser.SubExpressionContext ctx) {
+        System.out.println("enterSubExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitSubExpression(javaMinusMinusParser.SubExpressionContext ctx) {
+        System.out.println("exitSubExpression "+ctx.getText());
+    }
+
+    @Override
+    public void enterMulExpression(javaMinusMinusParser.MulExpressionContext ctx) {
+        System.out.println("enterMulExpression "+ctx.getText());
+    }
+
+    @Override
+    public void exitMulExpression(javaMinusMinusParser.MulExpressionContext ctx) {
+        System.out.println("exitMulExpression "+ctx.getText());
+    }
+
+    @Override
+    public void visitTerminal(TerminalNode terminalNode) {
+        System.out.println("visitTerminal "+terminalNode.getText());
+    }
+
+    @Override
+    public void visitErrorNode(ErrorNode errorNode) {
+        System.out.println("visitErrorNode "+errorNode.getText());
+    }
+
+    @Override
+    public void enterEveryRule(ParserRuleContext parserRuleContext) {
+
+        if (!isMainClassVisited) return;
+
+        String regex = "\\{.*?\\}.*?\\{.*?\\}";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(parserRuleContext.getText());
+
+//        if (matcher.find())
+//            parentScopeNode.push();
+
+        System.out.println("enterEveryRule "+parserRuleContext.getText());
+    }
+
+    @Override
+    public void exitEveryRule(ParserRuleContext parserRuleContext) {
+//
+        System.out.println("exitEveryRule "+parserRuleContext.getText());
+    }
+}
