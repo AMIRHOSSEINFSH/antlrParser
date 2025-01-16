@@ -1,0 +1,14 @@
+import math ;
+class Main {
+    public static void main (String [] args){
+        int num = 10 ;
+        while ( a + b ) {
+            int a = 2 ;
+        }
+        for ( int i = 0 ; i < 5 ; i + 1 ) {
+            x = x + 1 ;
+        }
+        print(x) ;
+
+    }
+}
