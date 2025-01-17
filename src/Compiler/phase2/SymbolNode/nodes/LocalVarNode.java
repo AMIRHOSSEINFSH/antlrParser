@@ -1,5 +1,6 @@
 package phase2.SymbolNode.nodes;
 
+import phase2.SymbolNode.enumeration.AccessModifier;
 import phase2.SymbolNode.enumeration.NodeType;
 
 import java.util.ArrayList;
@@ -13,6 +14,32 @@ public final class LocalVarNode implements SymbolNode {
     private SymbolNode parentNode;
 
     private ArrayList<SymbolNode> children = new ArrayList<>();
+
+    private int lineNumber;
+
+    public AccessModifier getAccessModifier() {
+        return accessModifier;
+    }
+
+    public void setAccessModifier(AccessModifier accessModifier) {
+        this.accessModifier = accessModifier;
+    }
+
+    private AccessModifier accessModifier = null;
+
+    @Override
+    public String getName() {
+        return varName;
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
 
     @Override
     public void addChild(SymbolNode child) {
@@ -65,26 +92,27 @@ public final class LocalVarNode implements SymbolNode {
                 .append("LocalVar: ")
                 .append("(name: ")
                 .append(varName)
-                .append(",");
+                .append(") ");
 
         if (typeSubNode != null) {
             sb.append("(type: ");
+            boolean isSingle=  typeSubNode.size() == 1;
+            if (!isSingle)
+                sb.append("[");
+            for (int i = 0; i < typeSubNode.size(); i++) {
+                var item=  typeSubNode.get(i);
+                if (item.isArray())
+                    sb.append("array of "+(isSingle ? "" : "["))
+                            .append(item.toString().replace("[]", "")).append(isSingle? "":", index:"+i+1+"]");
+                else sb.append(item);
 
-
-            if (typeSubNode.size() == 1)
-                sb.append(typeSubNode.getFirst().toString());
-            else {
-
-                if (typeSubNode.stream().noneMatch(TypeSubNode::isPrimitive))
-                    sb.append("array of ");
-
-                for (int i = 0; i < typeSubNode.size(); i++) {
-                    sb.append("[ ").append(typeSubNode.get(i).toString()).append(", index: ").append(i).append("], ");
-                }
-
+                if (i != typeSubNode.size() - 1) sb.append(", ");
             }
 
-            sb.append(" )");
+            if (!isSingle)
+                sb.append("]");
+
+            sb.append(")");
 
         }
 

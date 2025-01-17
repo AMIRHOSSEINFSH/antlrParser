@@ -15,6 +15,22 @@ public final class MethodNode implements SymbolNode {
     private List<TypeSubNode> typeSubNode;
     private boolean isOverried = false;
 
+    private int lineNumber;
+
+    @Override
+    public String getName() {
+        return methodName;
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
     public boolean isOverried() {
         return isOverried;
     }
@@ -102,22 +118,22 @@ public final class MethodNode implements SymbolNode {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Key = Class_")
+        sb.append("Key = method_")
                 .append(methodName)
                 .append("| ")
                 .append("Value = Method: ")
                 .append("(name: ")
                 .append(methodName)
-                .append(" )")
-                .append(" returnType: ")
+                .append(")")
+                .append(" (returnType: ")
                 .append(returnType)
-                .append(" ) ")
-                .append("accessModifier: ")
+                .append(") ")
+                .append("(accessModifier: ")
                 .append(accessModifier)
-                .append(" )");
+                .append(") ");
 
         if (isAbstract)
-            sb.append(" (")
+            sb.append("(")
                     .append("isAbstract:")
                     .append(isAbstract)
                     .append(")");
@@ -125,21 +141,18 @@ public final class MethodNode implements SymbolNode {
         if (typeSubNode != null) {
             sb.append(" (parametersType: ");
 
-            if (typeSubNode.size() == 1)
-                sb.append(typeSubNode.getFirst().toString());
-            else {
+            sb.append("[");
+            for (int i = 0; i < typeSubNode.size(); i++) {
+                var item=  typeSubNode.get(i);
+                if (item.isArray())
+                    sb.append("array of [")
+                            .append(item).append(", index:").append(i+1).append("]");
+                else sb.append(item);
 
-                if (typeSubNode.stream().noneMatch(TypeSubNode::isPrimitive))
-                    sb.append("array of ");
-
-                for (int i = 0; i < typeSubNode.size(); i++) {
-                    sb.append("[ ").append(typeSubNode.get(i).toString()).append(", index: ").append(i).append("], ");
-                }
-
+                if (i != typeSubNode.size() - 1) sb.append(", ");
             }
 
-
-            sb.append(" )");
+            sb.append("])");
         }
 
         return sb.toString();

@@ -4,13 +4,26 @@ import phase2.SymbolNode.enumeration.NodeType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
-public final class RootNode implements SymbolNode{
+public final class ProgramNode implements SymbolNode{
 
     private ArrayList<SymbolNode> children = new ArrayList<>();
 
-//    private Stack<>
+    private int lineNumber;
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    @Override
+    public String getName() {
+        return "Program";
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
 
     @Override
     public void addChild(SymbolNode child) {

@@ -12,6 +12,23 @@ public final class LoopNode implements SymbolNode {
 
     private final ArrayList<SymbolNode> children = new ArrayList<>();
 
+    private int lineNumber;
+
+    @Override
+    public String getName() {
+        //todo
+        return "Nested";
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
     @Override
     public void addChild(SymbolNode child) {
         children.add(child);

@@ -11,6 +11,21 @@ public final class ClassNode implements SymbolNode {
     private boolean isAbstract = false;
     private boolean isMainClass = false;
     private SymbolNode parentNode;
+    private int lineNumber;
+
+    @Override
+    public String getName() {
+        return className;
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
 
     private ArrayList<SymbolNode> children = new ArrayList<>();
 
@@ -37,7 +52,8 @@ public final class ClassNode implements SymbolNode {
 
     public ClassNode(String className, String extendedClass, boolean isAbstract, boolean isMainClass) {
         this.className = className;
-        this.extendedClass = extendedClass;
+        if (extendedClass != null)
+            this.extendedClass = extendedClass;
         this.isAbstract = isAbstract;
         this.isMainClass = isMainClass;
     }

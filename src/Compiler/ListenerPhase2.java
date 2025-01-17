@@ -8,7 +8,6 @@ import phase2.SymbolNode.enumeration.NodeType;
 import phase2.SymbolNode.nodes.*;
 
 import java.util.*;
-import java.util.concurrent.SynchronousQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,9 +15,32 @@ import static phase2.SymbolNode.nodes.TypeSubNode.primitiveTypes;
 
 public class ListenerPhase2 implements javaMinusMinusListener {
 
-    public RootNode rootNode;
+    public ProgramNode programNode;
 
-    public Stack<SymbolNode> parentScopeNode = new Stack<>();
+    private Stack<SymbolNode> parentScopeNode = new Stack<>();
+
+    //todo for test only
+    private SymbolNode pop() {
+        SymbolNode pop = null;
+        if (parentScopeNode.stream().anyMatch(node -> node instanceof EmptyNode)) {
+
+            while (!parentScopeNode.isEmpty()) {
+                SymbolNode top = parentScopeNode.pop();
+                if (top instanceof EmptyNode) {
+                    pop = parentScopeNode.pop();
+                    break;
+                }
+            }
+        } else {
+            pop = parentScopeNode.pop();
+        }
+
+        return pop;
+    }
+    private SymbolNode push(SymbolNode symbolNode) {
+        System.out.println("Stack: Pushed: "+symbolNode);
+        return parentScopeNode.push(symbolNode);
+    }
 
     private boolean isMainClassVisited = false;
 
@@ -26,13 +48,13 @@ public class ListenerPhase2 implements javaMinusMinusListener {
 
     private boolean isTypeExists(String type) {
         //dfs
-        Queue<SymbolNode> typeSubNodes = new LinkedList<>(rootNode.getChildren());
+        Queue<SymbolNode> typeSubNodes = new LinkedList<>(programNode.getChildren());
         while (!typeSubNodes.isEmpty()) {
             SymbolNode node = typeSubNodes.remove();
             if (node.getNodeType() == NodeType.Class && Objects.equals(type, ((ClassNode) node).getClassName()))
                 return true;
-
-            parentScopeNode.addAll(node.getChildren());
+//todo check again
+//            parentScopeNode.addAll(node.getChildren());
         }
 
         return false;
@@ -44,12 +66,36 @@ public class ListenerPhase2 implements javaMinusMinusListener {
 
     @Override
     public void enterProgram(javaMinusMinusParser.ProgramContext ctx) {
-        rootNode = new RootNode();
+        programNode = new ProgramNode();
+        programNode.setLineNumber(ctx.getStart().getLine());
     }
 
     @Override
     public void exitProgram(javaMinusMinusParser.ProgramContext ctx) {
+        //we will check for isDefined types
 
+        Queue<SymbolNode> queue = new LinkedList<>(programNode.getChildren());
+        while (!queue.isEmpty()) {
+            SymbolNode currentNode = queue.remove();
+            var typeList = new ArrayList<TypeSubNode>();
+            if (currentNode instanceof LocalVarNode) {
+                typeList.addAll(((LocalVarNode) currentNode).getTypeList());
+            }else if (currentNode instanceof MethodNode) {
+                typeList.addAll(((MethodNode) currentNode).getTypeSubNode());
+            }else if(currentNode instanceof ParamNode) {
+                typeList.addAll(((ParamNode) currentNode).getTypeList());
+            }
+
+            typeList.forEach(item->{
+                if (!item.isClassIsDefined() && isTypeExists(item.getClassType())){
+                    item.setClassIsDefined(true);
+                }
+                if (!item.isObjectIsDefined() && isTypeExists(item.getObjectType())){
+                    item.setObjectIsDefined(true);
+                }
+            });
+            queue.addAll(currentNode.getChildren());
+        }
     }
 
     @Override
@@ -67,19 +113,30 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         ClassNode classNode = new ClassNode(ctx.Identifier().getFirst().getText(),null,false,true);
 
         System.out.println("Entering Main class "+classNode.getClassName());
-        classNode.setParentNode(rootNode);
+        classNode.setParentNode(programNode);
+        classNode.setLineNumber(ctx.getStart().getLine());
 
         ArrayList<TypeSubNode> definitions = new ArrayList<>();
-        definitions.add(new TypeSubNode(ctx.Identifier().getLast().getText(),true));
+        var typeNode = new TypeSubNode("String",true);
+        typeNode.setArray(true);
+        definitions.add(typeNode);
         MethodNode methodNode = new MethodNode("main","void", AccessModifier.ACCESS_MODIFIER_PUBLIC,definitions,false);
-        classNode.setParentNode(methodNode);
+        methodNode.setLineNumber(ctx.getStart().getLine()+1);
+        methodNode.setParentNode(classNode);
+
+        ParamNode paramNode = new ParamNode("args",definitions);
+        paramNode.setParentNode(methodNode);
+
         isMainClassVisited = true;
-        parentScopeNode.push(classNode);
+        push(classNode);
+        push(methodNode);
     }
 
     @Override
     public void exitMainClass(javaMinusMinusParser.MainClassContext ctx) {
-        parentScopeNode.pop();
+        //as Main class and main method are in same grammar , when we are exiting MainClass should pop twice
+        pop();
+        pop();
     }
 
     @Override
@@ -94,14 +151,16 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         ClassNode classNode = new ClassNode(ctx.Identifier().getFirst().getText(),extendName,isAbstract,false);
         System.out.println("Entering class: "+classNode.getClassName());
 
-        classNode.setParentNode(rootNode);
+        classNode.setLineNumber(ctx.getStart().getLine());
+        classNode.setParentNode(programNode);
 
-        parentScopeNode.push(classNode);
+        push(classNode);
     }
 
     @Override
     public void exitClassDeclaration(javaMinusMinusParser.ClassDeclarationContext ctx) {
-        parentScopeNode.pop();
+//        ctx.getText();parentScopeNode
+        pop();
     }
 
     @Override
@@ -136,6 +195,16 @@ public class ListenerPhase2 implements javaMinusMinusListener {
 
     @Override
     public void enterFieldDeclaration(javaMinusMinusParser.FieldDeclarationContext ctx) {
+
+        String varName= ctx.varDeclaration().Identifier().getText();
+        String type = ctx.varDeclaration().type().getText();
+        AccessModifier accessModifier=  AccessModifier.getModifierBy(ctx.varDeclaration().accessModifier() == null ? null : ctx.varDeclaration().accessModifier().getText());
+        ArrayList<TypeSubNode> list = new ArrayList<>();
+        list.add(new TypeSubNode(type,isPrimitive(type) || isTypeExists(type)));
+        LocalVarNode localVarNode = new LocalVarNode(varName,list);
+        localVarNode.setAccessModifier(accessModifier);
+
+        localVarNode.setParentNode(parentScopeNode.peek());
         System.out.println("entering field "+ctx.getText());
     }
 
@@ -170,9 +239,9 @@ public class ListenerPhase2 implements javaMinusMinusListener {
                 }
             }
         }
-        definitions.add(new TypeSubNode(ctx.type().getText(), isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()),objectType));
+        definitions.add(new TypeSubNode(ctx.type().getText(), isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()),objectType,isPrimitive(objectType) || isTypeExists(objectType)));
         LocalVarNode localVarNode = new LocalVarNode(ctx.Identifier().toString(),definitions);
-        parentScopeNode.peek().addChild(localVarNode);
+        localVarNode.setParentNode(parentScopeNode.peek());
         System.out.println("entering localdec "+ctx.Identifier().toString());
     }
 
@@ -199,8 +268,14 @@ public class ListenerPhase2 implements javaMinusMinusListener {
             ctx.parameterList().getFirst().parameter().forEach(item->typeSubNodes.add(new TypeSubNode(item.type().getText(),isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()))));
         MethodNode mn = new MethodNode(ctx.Identifier().getText(),ctx.type().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes,false);
         mn.setOverried(ctx.getText().contains("@Override"));
-        parentScopeNode.peek().addChild(mn);
-        parentScopeNode.push(mn);
+        mn.setParentNode(parentScopeNode.peek());
+        push(mn);
+        var emptyNode= new EmptyNode();
+
+        emptyNode.setParentNode(parentScopeNode.peek());
+        emptyNode.setLineNumber(ctx.getStart().getLine());
+        push(emptyNode);
+//        parentScopeNode.push(mn);
 //        ctx.type().getText()
         System.out.println("entering method "+ctx.getText());
     }
@@ -208,11 +283,22 @@ public class ListenerPhase2 implements javaMinusMinusListener {
     @Override
     public void exitMethodDeclaration(javaMinusMinusParser.MethodDeclarationContext ctx) {
         System.out.println("exit method "+ctx.getText());
-        parentScopeNode.pop();
+
+//        parentScopeNode.pop();
+        pop();
     }
 
     @Override
     public void enterConstructorDeclaration(javaMinusMinusParser.ConstructorDeclarationContext ctx) {
+
+        ArrayList<TypeSubNode> typeSubNodes = new ArrayList<>();
+        if (!ctx.parameterList().isEmpty())
+            ctx.parameterList().getFirst().parameter().forEach(item->typeSubNodes.add(new TypeSubNode(item.type().getText(),isPrimitive(item.type().getText()) || isTypeExists(item.type().getText()))));
+        ConstructorNode cn = new ConstructorNode(ctx.Identifier().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes);
+        cn.setOverride(ctx.getText().contains("@Override"));
+        cn.setParentNode(parentScopeNode.peek());
+
+//        ConstructorNode methodNode = new ConstructorNode(className,defections);
         System.out.println("entering constructor: "+ ctx.getText());
     }
 
@@ -224,12 +310,26 @@ public class ListenerPhase2 implements javaMinusMinusListener {
     @Override
     public void enterAbstractMethodDeclaration(javaMinusMinusParser.AbstractMethodDeclarationContext ctx) {
         System.out.println("enterAbstractMethodDeclaration "+ ctx.getText());
+
+        ArrayList<TypeSubNode> typeSubNodes = new ArrayList<>();
+        if (!ctx.parameterList().isEmpty())
+            ctx.parameterList().getFirst().parameter().forEach(item->typeSubNodes.add(new TypeSubNode(item.type().getText(),isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()))));
+        MethodNode mn = new MethodNode(ctx.Identifier().getText(),ctx.type().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes,true);
+        mn.setOverried(ctx.getText().contains("@Override"));
+        mn.setParentNode(parentScopeNode.peek());
+        push(mn);
+        var emptyNode= new EmptyNode();
+
+        emptyNode.setParentNode(parentScopeNode.peek());
+        emptyNode.setLineNumber(ctx.getStart().getLine());
+
     }
 
     @Override
     public void exitAbstractMethodDeclaration(javaMinusMinusParser.AbstractMethodDeclarationContext ctx) {
         System.out.println("exitAbstractMethodDeclaration "+ ctx.getText());
-        parentScopeNode.pop();
+//        parentScopeNode.pop();
+        pop();
     }
 
     @Override
@@ -324,18 +424,25 @@ public class ListenerPhase2 implements javaMinusMinusListener {
     @Override
     public void exitWhileStatement(javaMinusMinusParser.WhileStatementContext ctx) {
         System.out.println("exitWhileStatement "+ctx.getText());
-        parentScopeNode.pop();
+//        parentScopeNode.pop();
+        pop();
     }
 
     @Override
     public void enterForStatement(javaMinusMinusParser.ForStatementContext ctx) {
         System.out.println("enterForStatement "+ctx.getText());
+        LoopNode loopNode = new LoopNode();
+        loopNode.setLineNumber(ctx.getStart().getLine());
+        loopNode.setParentNode(parentScopeNode.peek());
+        push(loopNode);
+//        parentScopeNode.push(loopNode);
     }
 
     @Override
     public void exitForStatement(javaMinusMinusParser.ForStatementContext ctx) {
         System.out.println("exitForStatement "+ctx.getText());
-        parentScopeNode.pop();
+//        parentScopeNode.pop();
+        pop();
     }
 
     @Override

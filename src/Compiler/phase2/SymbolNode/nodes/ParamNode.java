@@ -14,6 +14,22 @@ public final class ParamNode implements SymbolNode {
 
     private ArrayList<SymbolNode> children = new ArrayList<>();
 
+    private int lineNumber;
+
+    @Override
+    public String getName() {
+        return paramName;
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
     @Override
     public void addChild(SymbolNode child) {
         children.add(child);
@@ -65,26 +81,23 @@ public final class ParamNode implements SymbolNode {
                 .append("Parameter: ")
                 .append("(name: ")
                 .append(paramName)
-                .append(",");
+                .append(") ");
 
         if (typeSubNode != null) {
-            sb.append("(type: ");
+            sb.append(" (parametersType: ");
 
+            sb.append("[");
+            for (int i = 0; i < typeSubNode.size(); i++) {
+                var item=  typeSubNode.get(i);
+                if (item.isArray())
+                    sb.append("array of [")
+                            .append(item).append(", index:").append(i+1).append("]");
+                else sb.append(item);
 
-            if (typeSubNode.size() == 1)
-                sb.append(typeSubNode.getFirst().toString());
-            else {
-
-                if (typeSubNode.stream().noneMatch(TypeSubNode::isPrimitive))
-                    sb.append("array of ");
-
-                for (int i = 0; i < typeSubNode.size(); i++) {
-                    sb.append("[ ").append(typeSubNode.get(i).toString()).append(", index: ").append(i).append("], ");
-                }
-
+                if (i != typeSubNode.size() - 1) sb.append(", ");
             }
 
-            sb.append(" )");
+            sb.append("])");
 
         }
 

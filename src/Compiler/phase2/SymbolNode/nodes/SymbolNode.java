@@ -4,7 +4,7 @@ import phase2.SymbolNode.enumeration.NodeType;
 
 import java.util.List;
 
-public sealed interface SymbolNode permits ClassNode, ConstructorNode, LocalVarNode, LoopNode, MethodNode, ParamNode, RootNode {
+public sealed interface SymbolNode permits ClassNode, ConstructorNode, EmptyNode, LocalVarNode, LoopNode, MethodNode, ParamNode, ProgramNode {
 
     public SymbolNode getParentNode();
     public default void setParentNode(SymbolNode parentNode) {
@@ -15,5 +15,9 @@ public sealed interface SymbolNode permits ClassNode, ConstructorNode, LocalVarN
     public List<SymbolNode> getChildren();
 
     public NodeType getNodeType();
+
+    public int getLineNumber();
+
+    public String getName();
 
 }

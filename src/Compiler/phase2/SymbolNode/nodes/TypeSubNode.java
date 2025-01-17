@@ -5,28 +5,57 @@ import java.util.Arrays;
 public class TypeSubNode {
 
     private String classType;
-    private boolean isDefined;
+    private boolean classIsDefined;
+    private boolean objectIsDefined;
     private String objectType;
-    public static final String[] primitiveTypes = {"int", "long", "float", "double" , "char", "boolean"};
+    public static final String[] primitiveTypes = {"int", "long", "float", "double" , "char", "boolean",
+            "int[]", "long[]", "float[]", "double[]" , "char[]", "boolean[]"
+    };
+    private boolean isArray = false;
 
 
-    public TypeSubNode(String classType, boolean isDefined, String objectType) {
-        this.classType = classType;
-        this.isDefined = isDefined;
-        this.objectType = objectType;
+    public boolean isObjectIsDefined() {
+        return objectIsDefined;
     }
 
-    public TypeSubNode(String classType, boolean isDefined) {
+    public boolean isArray() {
+        return isArray;
+    }
+
+    public void setObjectIsDefined(boolean objectIsDefined) {
+        this.objectIsDefined = objectIsDefined;
+    }
+
+    public String getObjectType() {
+        return objectType;
+    }
+
+    public TypeSubNode(String classType, boolean classIsDefined, String objectType, boolean objectIsDefined) {
+        this(classType,classIsDefined);
+        this.objectType = objectType;
+        this.objectIsDefined = objectIsDefined;
+    }
+
+    public TypeSubNode(String classType, boolean classIsDefined) {
         this.classType = classType;
-        this.isDefined = isDefined;
+        this.classIsDefined = classIsDefined;
+        isArray = classType.contains("[]");
+    }
+
+    public void setArray(boolean array) {
+        isArray = array;
     }
 
     public String getClassType() {
         return classType;
     }
 
-    public boolean isDefined() {
-        return isDefined;
+    public void setClassIsDefined(boolean classIsDefined) {
+        this.classIsDefined = classIsDefined;
+    }
+
+    public boolean isClassIsDefined() {
+        return classIsDefined;
     }
 
     public boolean isPrimitive() {
@@ -34,8 +63,12 @@ public class TypeSubNode {
     }
 
     public String toString() {
+        StringBuilder sb = new StringBuilder();
         if (isPrimitive())
             return classType;
-        return "classType = "+classType + ", isDefined = "+isDefined;
+        sb.append("classType = ").append(classType).append(", classIsDefined = ").append(classIsDefined);
+                if(objectType != null)
+                    sb.append(", ").append("objectType = ").append(objectType).append(", objectIsDefined = ").append(objectIsDefined);
+        return sb.toString();
     }
 }
