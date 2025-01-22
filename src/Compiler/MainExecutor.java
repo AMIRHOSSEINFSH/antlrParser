@@ -6,6 +6,8 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import phase1.ListenerPhase1;
+import phase2.SymbolNode.AntlrListenerHelper;
 import phase2.SymbolNode.enumeration.NodeType;
 import phase2.SymbolNode.nodes.EmptyNode;
 import phase2.SymbolNode.nodes.SymbolNode;
@@ -28,40 +30,32 @@ public class MainExecutor {
         ParseTree tree = parser.program();
         ParseTreeWalker walker = new ParseTreeWalker();
 
-//        javaMinusMinusListener listener = new ListenerPhase1();
-        javaMinusMinusListener listener = new ListenerPhase2();
+        AntlrListenerHelper listener = getListenerBy(HelperType.PHASE2);
 
         walker.walk(listener, tree);
 
-        SymbolNode rootNode = ((ListenerPhase2) listener).programNode;
-
-        SymbolNode parentNode = rootNode;
-        System.out.println("-------------- program:"+rootNode.getLineNumber()+"----------------");
-        rootNode.getChildren().stream().filter(item->item.getNodeType() != NodeType.Empty).forEach(item-> System.out.println(item.toString()));
-        List<SymbolNode> nodeList =  rootNode.getChildren();
-        for (SymbolNode item : nodeList) {
-            Queue<SymbolNode> queue = new LinkedList<>(item.getChildren());
-
-            while (!queue.isEmpty()) {
-                SymbolNode currentNode = queue.remove();
-
-                var wasEmptyChange = parentNode != currentNode.getParentNode() && currentNode.getParentNode().getChildren().size() == 1 && currentNode instanceof EmptyNode;
-                if (parentNode != currentNode.getParentNode()) {
-                    parentNode = currentNode.getParentNode();
-                    System.out.println("---------- " + parentNode.getName() + ": " + parentNode.getLineNumber() + "--------------");
-                }
-                if (wasEmptyChange)
-                    System.out.println("!No KEY FOUND");
-                else if(!(currentNode instanceof EmptyNode))
-                    System.out.println(currentNode);
-
-                queue.addAll(currentNode.getChildren());
-            }
-
-        }
+        listener.showPrettyConsole();
 
 
     }
 
+    private static AntlrListenerHelper getListenerBy(HelperType type) {
+        switch (type) {
+            case PHASE1 -> {
+                return new ListenerPhase1();
+            }
+            case PHASE2 -> {
+                return new ListenerPhase2();
+            }
+            case PHASE3 -> {
+                //todo will be implemented soon...
+                return null;
+            }
+        }
+        return null;
+    }
 
+    private enum HelperType {
+        PHASE1,PHASE2,PHASE3
+    }
 }

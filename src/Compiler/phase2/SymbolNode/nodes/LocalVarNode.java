@@ -17,6 +17,18 @@ public final class LocalVarNode implements SymbolNode {
 
     private int lineNumber;
 
+    private String rawLine;
+
+    @Override
+    public void setRawLine(String rawLine) {
+        this.rawLine = rawLine;
+    }
+
+    @Override
+    public String getRawLine() {
+        return rawLine;
+    }
+
     public AccessModifier getAccessModifier() {
         return accessModifier;
     }

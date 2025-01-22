@@ -48,4 +48,14 @@ public final class EmptyNode implements SymbolNode{
     public String getName() {
         return "NO_NAME";
     }
+
+    @Override
+    public void setRawLine(String rawLine) {
+
+    }
+
+    @Override
+    public String getRawLine() {
+        return "";
+    }
 }

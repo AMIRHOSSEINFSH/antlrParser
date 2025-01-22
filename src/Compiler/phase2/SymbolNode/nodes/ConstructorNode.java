@@ -20,6 +20,28 @@ public final class ConstructorNode implements SymbolNode{
 
     private List<TypeSubNode> typeSubNode;
 
+    private String rawLine;
+
+    private String RawBody;
+
+    public String getRawBody() {
+        return RawBody;
+    }
+
+    public void setRawBody(String rawBody) {
+        RawBody = rawBody;
+    }
+
+    @Override
+    public void setRawLine(String rawLine) {
+        this.rawLine = rawLine;
+    }
+
+    @Override
+    public String getRawLine() {
+        return rawLine;
+    }
+
     public ConstructorNode(String className,AccessModifier accessModifier, List<TypeSubNode> typeSubNode) {
         this.className = className;
         this.accessModifier = accessModifier;

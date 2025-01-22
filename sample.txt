@@ -43,6 +43,9 @@ abstract class Circle extends Shape {
 
     // Constructor for Circle
     public Circle(int radius) {
+        int[] numbers = new int[5];
+        int[] numberss = new int[4];
+        a = b;
         radius = radius;
     }
 

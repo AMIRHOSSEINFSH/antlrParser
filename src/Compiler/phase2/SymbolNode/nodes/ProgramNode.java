@@ -21,6 +21,16 @@ public final class ProgramNode implements SymbolNode{
         return "Program";
     }
 
+    @Override
+    public void setRawLine(String rawLine) {
+
+    }
+
+    @Override
+    public String getRawLine() {
+        return "";
+    }
+
     public void setLineNumber(int lineNumber) {
         this.lineNumber = lineNumber;
     }

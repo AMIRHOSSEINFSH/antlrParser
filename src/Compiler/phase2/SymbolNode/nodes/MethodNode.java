@@ -17,6 +17,28 @@ public final class MethodNode implements SymbolNode {
 
     private int lineNumber;
 
+    private String rawLine;
+
+    private String RawBody;
+
+    public String getRawBody() {
+        return RawBody;
+    }
+
+    public void setRawBody(String rawBody) {
+        RawBody = rawBody;
+    }
+
+    @Override
+    public void setRawLine(String rawLine) {
+        this.rawLine = rawLine;
+    }
+
+    @Override
+    public String getRawLine() {
+        return rawLine;
+    }
+
     @Override
     public String getName() {
         return methodName;

@@ -7,11 +7,13 @@ import java.util.List;
 public sealed interface SymbolNode permits ClassNode, ConstructorNode, EmptyNode, LocalVarNode, LoopNode, MethodNode, ParamNode, ProgramNode {
 
     public SymbolNode getParentNode();
+
     public default void setParentNode(SymbolNode parentNode) {
         parentNode.addChild(this);
     }
 
     public void addChild(SymbolNode child);
+
     public List<SymbolNode> getChildren();
 
     public NodeType getNodeType();
@@ -20,4 +22,7 @@ public sealed interface SymbolNode permits ClassNode, ConstructorNode, EmptyNode
 
     public String getName();
 
+    public void setRawLine(String rawLine);
+
+    public String getRawLine();
 }

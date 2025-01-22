@@ -2,7 +2,9 @@ import gen.javaMinusMinusListener;
 import gen.javaMinusMinusParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import phase2.SymbolNode.AntlrListenerHelper;
 import phase2.SymbolNode.enumeration.AccessModifier;
 import phase2.SymbolNode.enumeration.NodeType;
 import phase2.SymbolNode.nodes.*;
@@ -13,13 +15,17 @@ import java.util.regex.Pattern;
 
 import static phase2.SymbolNode.nodes.TypeSubNode.primitiveTypes;
 
-public class ListenerPhase2 implements javaMinusMinusListener {
+public class ListenerPhase2 implements AntlrListenerHelper {
 
+    //region definitions
     public ProgramNode programNode;
 
     private Stack<SymbolNode> parentScopeNode = new Stack<>();
 
-    //todo for test only
+    private boolean isMainClassVisited = false;
+    //endregion
+
+    //region Helper Methods
     private SymbolNode pop() {
         SymbolNode pop = null;
         if (parentScopeNode.stream().anyMatch(node -> node instanceof EmptyNode)) {
@@ -41,10 +47,37 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         System.out.println("Stack: Pushed: "+symbolNode);
         return parentScopeNode.push(symbolNode);
     }
+    //endregion
 
-    private boolean isMainClassVisited = false;
+    @Override
+    public void showPrettyConsole() {
+        SymbolNode rootNode = programNode;
 
-//    public boolean isNestedNode = false;
+        SymbolNode parentNode = rootNode;
+        System.out.println("-------------- program:"+rootNode.getLineNumber()+"----------------");
+        rootNode.getChildren().stream().filter(item->item.getNodeType() != NodeType.Empty).forEach(item-> System.out.println(item.toString()));
+        List<SymbolNode> nodeList =  rootNode.getChildren();
+        for (SymbolNode item : nodeList) {
+            Queue<SymbolNode> queue = new LinkedList<>(item.getChildren());
+
+            while (!queue.isEmpty()) {
+                SymbolNode currentNode = queue.remove();
+
+                var wasEmptyChange = parentNode != currentNode.getParentNode() && currentNode.getParentNode().getChildren().size() == 1 && currentNode instanceof EmptyNode;
+                if (parentNode != currentNode.getParentNode()) {
+                    parentNode = currentNode.getParentNode();
+                    System.out.println("---------- " + parentNode.getName() + ": " + parentNode.getLineNumber() + "--------------");
+                }
+                if (wasEmptyChange)
+                    System.out.println("!No KEY FOUND");
+                else if(!(currentNode instanceof EmptyNode))
+                    System.out.println(currentNode);
+
+                queue.addAll(currentNode.getChildren());
+            }
+
+        }
+    }
 
     private boolean isTypeExists(String type) {
         //dfs
@@ -53,8 +86,6 @@ public class ListenerPhase2 implements javaMinusMinusListener {
             SymbolNode node = typeSubNodes.remove();
             if (node.getNodeType() == NodeType.Class && Objects.equals(type, ((ClassNode) node).getClassName()))
                 return true;
-//todo check again
-//            parentScopeNode.addAll(node.getChildren());
         }
 
         return false;
@@ -127,6 +158,27 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         ParamNode paramNode = new ParamNode("args",definitions);
         paramNode.setParentNode(methodNode);
 
+        var list= ctx.children.stream().map(ParseTree::getText).toList();
+
+        String mainClassRawLine = null;
+        String mainMethodRawLine = null;
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).equals("{")) {
+                if (mainClassRawLine == null) {
+                    mainClassRawLine = sb.toString().trim();
+                }else {
+                    mainMethodRawLine = sb.toString().trim();
+                }
+                sb.setLength(0);
+                continue;
+            }
+            sb.append(list.get(i)).append(" ");
+        }
+
+        classNode.setRawLine(mainClassRawLine);
+        methodNode.setRawLine(mainMethodRawLine);
         isMainClassVisited = true;
         push(classNode);
         push(methodNode);
@@ -142,15 +194,25 @@ public class ListenerPhase2 implements javaMinusMinusListener {
     @Override
     public void enterClassDeclaration(javaMinusMinusParser.ClassDeclarationContext ctx) {
         boolean isAbstract = ctx.children.getFirst().getText().equals("abstract");
+        String className= ctx.Identifier().getFirst().getText();
+        var index= ctx.children.stream().map(ParseTree::getText).toList().indexOf("{");
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < index; i++) {
+            sb.append(ctx.getChild(i)).append(" ");
+        }
+
+//        int startNameIdx = ctx.children
         String extendName = null;
         if (!(ctx.Identifier(1) == null || ctx.Identifier(1).getText().equals("implement"))) {
             extendName = ctx.Identifier(1).getText();
         }
 
 
-        ClassNode classNode = new ClassNode(ctx.Identifier().getFirst().getText(),extendName,isAbstract,false);
+        ClassNode classNode = new ClassNode(className,extendName,isAbstract,false);
         System.out.println("Entering class: "+classNode.getClassName());
 
+        classNode.setRawLine(sb.toString().trim());
         classNode.setLineNumber(ctx.getStart().getLine());
         classNode.setParentNode(programNode);
 
@@ -268,6 +330,15 @@ public class ListenerPhase2 implements javaMinusMinusListener {
             ctx.parameterList().getFirst().parameter().forEach(item->typeSubNodes.add(new TypeSubNode(item.type().getText(),isPrimitive(ctx.type().getText()) || isTypeExists(ctx.type().getText()))));
         MethodNode mn = new MethodNode(ctx.Identifier().getText(),ctx.type().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes,false);
         mn.setOverried(ctx.getText().contains("@Override"));
+
+        var index= ctx.children.stream().map(ParseTree::getText).toList().indexOf("{");
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < index; i++) {
+            sb.append(ctx.getChild(i).getText()).append(" ");
+        }
+
+        mn.setRawLine(sb.toString().trim());
         mn.setParentNode(parentScopeNode.peek());
         push(mn);
         var emptyNode= new EmptyNode();
@@ -275,8 +346,7 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         emptyNode.setParentNode(parentScopeNode.peek());
         emptyNode.setLineNumber(ctx.getStart().getLine());
         push(emptyNode);
-//        parentScopeNode.push(mn);
-//        ctx.type().getText()
+
         System.out.println("entering method "+ctx.getText());
     }
 
@@ -284,7 +354,6 @@ public class ListenerPhase2 implements javaMinusMinusListener {
     public void exitMethodDeclaration(javaMinusMinusParser.MethodDeclarationContext ctx) {
         System.out.println("exit method "+ctx.getText());
 
-//        parentScopeNode.pop();
         pop();
     }
 
@@ -297,7 +366,9 @@ public class ListenerPhase2 implements javaMinusMinusListener {
         ConstructorNode cn = new ConstructorNode(ctx.Identifier().getText(),ctx.accessModifier().getText() == null ? AccessModifier.ACCESS_MODIFIER_PACKAGE: AccessModifier.getModifierBy(ctx.accessModifier().getText()),typeSubNodes);
         cn.setOverride(ctx.getText().contains("@Override"));
         cn.setParentNode(parentScopeNode.peek());
-
+        //todo what to do for constructor
+//        ctx.getText()
+        cn.setRawLine(ctx.methodBody().getText());
 //        ConstructorNode methodNode = new ConstructorNode(className,defections);
         System.out.println("entering constructor: "+ ctx.getText());
     }

@@ -14,6 +14,18 @@ public final class LoopNode implements SymbolNode {
 
     private int lineNumber;
 
+    private String rawLine;
+
+    @Override
+    public void setRawLine(String rawLine) {
+        this.rawLine = rawLine;
+    }
+
+    @Override
+    public String getRawLine() {
+        return rawLine;
+    }
+
     @Override
     public String getName() {
         //todo
@@ -57,7 +69,11 @@ public final class LoopNode implements SymbolNode {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        children.forEach(child-> sb.append(child.toString()).append("\n"));
+        for (int i = 0; i < children.size(); i++) {
+            var child = children.get(i);
+            sb.append(child.toString());
+            if (i < children.size() - 1) sb.append("\n");
+        }
         return sb.toString();
     }
 }

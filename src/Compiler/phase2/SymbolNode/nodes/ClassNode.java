@@ -12,6 +12,17 @@ public final class ClassNode implements SymbolNode {
     private boolean isMainClass = false;
     private SymbolNode parentNode;
     private int lineNumber;
+    private String rawLine;
+
+    @Override
+    public void setRawLine(String rawLine) {
+        this.rawLine = rawLine;
+    }
+
+    @Override
+    public String getRawLine() {
+        return rawLine;
+    }
 
     @Override
     public String getName() {

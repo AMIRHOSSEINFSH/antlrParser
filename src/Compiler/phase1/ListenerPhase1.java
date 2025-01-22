@@ -6,8 +6,9 @@ import gen.javaMinusMinusParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import phase2.SymbolNode.AntlrListenerHelper;
 
-public class ListenerPhase1 implements javaMinusMinusListener {
+public class ListenerPhase1 implements AntlrListenerHelper {
 
     private int indentLevel = 0;
     private boolean isInsideIfElse = false;
@@ -806,6 +807,11 @@ public class ListenerPhase1 implements javaMinusMinusListener {
 
     @Override
     public void exitEveryRule(ParserRuleContext parserRuleContext) {
+
+    }
+
+    @Override
+    public void showPrettyConsole() {
 
     }
 }
